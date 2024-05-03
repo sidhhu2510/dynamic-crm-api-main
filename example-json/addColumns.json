@@ -1,0 +1,37 @@
+{
+    "tableName": "example_table",
+    "columns": [
+        {
+            "name": "name",
+            "type": "VARCHAR",
+            "length": 50,
+            "nullable": false,
+            "comment": "Name of the entity",
+            "unique": true
+        },
+        {
+            "name": "age",
+            "type": "INT",
+            "length": 3,
+            "nullable": true,
+            "comment": "Age of the entity"
+        },
+        {
+            "name": "email",
+            "type": "VARCHAR",
+            "length": 100,
+            "nullable": false,
+            "comment": "Email address of the entity",
+            "unique": true
+        }
+    ],
+    "foreignKeys": [
+        {
+            "column": "user_id",
+            "referenceTable": "users",
+            "referenceColumn": "id",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+        }
+    ]
+}

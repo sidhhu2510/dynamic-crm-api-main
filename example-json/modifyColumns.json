@@ -1,0 +1,38 @@
+{
+    "tableName": "example_table",
+    "columnsToAdd": [
+        {
+            "name": "new_column1",
+            "type": "INT",
+            "default": 0,
+            "comment": "Description of new_column1",
+            "nullable": false,
+            "unique": true
+        },
+        {
+            "name": "new_column2",
+            "type": "VARCHAR",
+            "length": 50,
+            "default": "default_value",
+            "comment": "Description of new_column2",
+            "nullable": true
+        }
+    ],
+    "columnsToRemove": [
+        "old_column1",
+        "old_column2"
+    ],
+    "foreignKeysToAdd": [
+        {
+            "name": "fk_name",
+            "column": "new_column1",
+            "referenceTable": "other_table",
+            "referenceColumn": "id",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+        }
+    ],
+    "foreignKeysToRemove": [
+        "fk_name"
+    ]
+}
