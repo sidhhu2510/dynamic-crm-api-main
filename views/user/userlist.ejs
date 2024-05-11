@@ -1,0 +1,96 @@
+<%- include('./header') %>  
+        <!-- [ Main Content ] start -->
+        <div class="row">
+            <!-- [ basic-table ] start -->
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>User List</h5>  
+                        <a href="/userlist/create" class="btn btn-primary"> Add User </a>
+                    </div>
+					
+                    <div class="card-body table-border-style">
+                        
+                        <div class="table-responsive">
+                            <table id="example" class="table table-striped" style="width:100%">
+                                <thead>
+                                    <tr>
+                                        <th>S.NO
+                                            <span class="filter-icon" data-column="0"><i
+                                                    class="fas fa-filter"></i></span>
+                                            <div class="filter-options">
+                                                <input type="text" placeholder="Search S.No" />
+                                            </div>
+                                        </th>
+                                        <!-- <th>N</th> -->
+                                        <!-- <th>ID
+                                            <span class="filter-icon" data-column="1"><i
+                                                    class="fas fa-filter"></i></span>
+                                            <div class="filter-options">
+                                                <input type="text" placeholder="Search ID" />
+                                            </div>
+                                        </th> -->
+                                       
+                                        <th>userName
+                                            <span class="filter-icon" data-column="1"><i
+                                                class="fas fa-filter"></i></span>
+                                        <div class="filter-options">
+                                            <input type="text" placeholder="Search Applied Person" />
+                                        </div>
+                                        </th>
+                                        <th>eMail
+                                            <span class="filter-icon" data-column="1"><i
+                                                class="fas fa-filter"></i></span>
+                                        <div class="filter-options">
+                                            <input type="text" placeholder="Search eMail" />
+                                        </div>
+                                        </th>
+										<!-- <th>passWord
+                                            <span class="filter-icon" data-column="1"><i
+                                                class="fas fa-filter"></i></span>
+                                        <div class="filter-options">
+                                            <input type="text" placeholder="Search  passWord" />
+                                        </div>
+                                        </th> -->
+										<th>userRole
+                                            <span class="filter-icon" data-column="1"><i
+                                                class="fas fa-filter"></i></span>
+                                        <div class="filter-options">
+                                            <input type="text" placeholder="Search userRole" />
+                                        </div>
+                                        </th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% for (var i = 0; i < users.length; i++) { %>
+                                        <tr>
+                                            <td><%= i+1 %></td>
+                                          <!-- <td><%= users[i].id %></td> -->
+                                          <td><%= users[i].userName %></td>
+                                          <td><%= users[i].eMail %></td>
+                                          <!-- <td><%= users[i].passWord %></td> -->
+                                          <td><%= users[i].userRoleTitle %></td>
+
+                                         
+                                          <td>
+											<a href="/userlist/edit/<%= users[i].id  %>" style="margin: 0 20px ;" value="6" class="btn btn-warning">Update</a>
+
+
+                                            <button class="doc_document_delete btn btn-danger delete-table-data" data-toggle="modal" data-pk="<%= users[i].id  %>" data-title="user list" data-target="#confirmationModal">Delete</button>
+										</td>
+                                        </tr>
+                                        <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- [ basic-table ] end -->
+           
+        </div>
+		<!--extra table-->
+		
+        <!-- [ Main Content ] end -->
+		<%- include('./fooder') %>

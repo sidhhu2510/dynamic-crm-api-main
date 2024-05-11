@@ -1,14 +1,47 @@
 const connection = require("../config/db");
 const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
 const bcrypt = require('bcryptjs'); // Import bcryptjs library
 const nodemailer = require('nodemailer');
 const { sendMail } = require('../utils/email')
 const otpGenerator = require('otp-generator');
+const express = require('express');
+const app = express();
+
+// Use cookie-parser middleware
+app.use(cookieParser());
+
 // Blacklist for revoked tokens
 let revokedTokens = [];
 
 class USER {
     static checkTable() {
+        const createModulesTable = () => {
+            return new Promise((resolve, reject) => {
+                connection.query("SHOW TABLES LIKE 'modules'", (err, result) => {
+                    if (err) return reject(err);
+
+                    if (result.length === 0) {
+                        const createModuleTableQuery = `
+                        CREATE TABLE modules (
+                            id int(11) AUTO_INCREMENT PRIMARY KEY,
+                            tableName varchar(200) NOT NULL,
+                            isActive int(11) NOT NULL DEFAULT 1,
+                            createdAt timestamp NOT NULL DEFAULT current_timestamp(),
+                            updatedAt timestamp NOT NULL DEFAULT current_timestamp()
+                        )`;
+
+                        connection.query(createModuleTableQuery, (err) => {
+                            if (err) return reject(err);
+                            console.log('Module table created');
+                            resolve();
+                        });
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        };
         const createUserRoleTable = () => {
             return new Promise((resolve, reject) => {
                 connection.query("SHOW TABLES LIKE 'user_role'", (err, result) => {
@@ -19,7 +52,7 @@ class USER {
                         const createUserRoleTableQuery = `
                             CREATE TABLE user_role (
                                 id int(11) AUTO_INCREMENT PRIMARY KEY,
-                                title varchar(200) NOT NULL,
+                                title varchar(200) NOT NULL UNIQUE,
                                 isActive int(11) NOT NULL DEFAULT 1,
                                 createdAt timestamp NOT NULL DEFAULT current_timestamp(),
                                 updatedAt timestamp NOT NULL DEFAULT current_timestamp()
@@ -76,32 +109,6 @@ class USER {
                 });
             });
         };
-        const createModulesTable = () => {
-            return new Promise((resolve, reject) => {
-                connection.query("SHOW TABLES LIKE 'modules'", (err, result) => {
-                    if (err) return reject(err);
-
-                    if (result.length === 0) {
-                        const createModuleTableQuery = `
-                        CREATE TABLE modules (
-                            id int(11) AUTO_INCREMENT PRIMARY KEY,
-                            tableName varchar(200) NOT NULL,
-                            isActive int(11) NOT NULL DEFAULT 1,
-                            createdAt timestamp NOT NULL DEFAULT current_timestamp(),
-                            updatedAt timestamp NOT NULL DEFAULT current_timestamp()
-                        )`;
-
-                        connection.query(createModuleTableQuery, (err) => {
-                            if (err) return reject(err);
-                            console.log('Module table created');
-                            resolve();
-                        });
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-        };
         const createRolePermissionsTable = () => {
             return new Promise((resolve, reject) => {
                 connection.query("SHOW TABLES LIKE 'role_permissions'", (err, result) => {
@@ -128,7 +135,7 @@ class USER {
                             if (err) return reject(err);
                             console.log('Role Permissions table created');
                             // resolve();
-                            const rolePermissionTrigger1 = `CREATE TRIGGER create_role_permissions_trigger
+                            const rolePermissionTrigger1 = `CREATE TRIGGER create_admin_role_permissions_trigger
                                 AFTER INSERT ON modules
                                 FOR EACH ROW
                                 BEGIN
@@ -139,7 +146,7 @@ class USER {
                                     VALUES (roleId, NEW.id, 1, 1, 1, 1); -- Customize method values as needed
                                 END`;
 
-                            const rolePermissionTrigger2 = `CREATE TRIGGER prevent_delete_update_role_permissions_trigger
+                            const rolePermissionTrigger2 = `CREATE TRIGGER prevent_admin_delete_update_role_permissions_trigger
                                 BEFORE DELETE ON role_permissions
                                 FOR EACH ROW
                                 BEGIN
@@ -148,16 +155,74 @@ class USER {
                                     END IF;
                                 END`;
 
-                            const rolePermissionTrigger3 = `CREATE TRIGGER prevent_update_role_permissions_trigger
+                            const rolePermissionTrigger3 = `CREATE TRIGGER prevent_admin_update_role_permissions_trigger
                                 BEFORE UPDATE ON role_permissions
                                 FOR EACH ROW
                                 BEGIN
                                     IF NEW.userRoleId = 1 THEN
                                         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot update role permissions for userRoleId is Admin';
                                     END IF;
-                                END`;
+                                END`; 
 
-                            const triggers = [rolePermissionTrigger1, rolePermissionTrigger2, rolePermissionTrigger3];
+                            const rolePermissionTrigger4 = `CREATE TRIGGER create_role_permissions_trigger
+                            AFTER INSERT ON modules
+                            FOR EACH ROW
+                            BEGIN
+                                DECLARE roleId INT;
+                                DECLARE done INT DEFAULT FALSE;
+                                DECLARE cur CURSOR FOR SELECT id FROM user_role WHERE id != 1; -- Exclude userRoleId = 1
+                                DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+                            
+                                OPEN cur;
+                                read_loop: LOOP
+                                    FETCH cur INTO roleId;
+                                    IF done THEN
+                                        LEAVE read_loop;
+                                    END IF;
+                            
+                                    INSERT INTO role_permissions (userRoleId, moduleId, getMethod, postMethod, putMethod, deleteMethod)
+                                    VALUES (roleId, NEW.id, 1, 0, 0, 0); -- Customize method values as needed
+                                END LOOP;
+                                CLOSE cur;
+                            END;`;
+                            const rolePermissionTrigger5 = `CREATE TRIGGER create_role_permissions_on_new_user_role_trigger
+                            AFTER INSERT ON user_role
+                            FOR EACH ROW
+                            BEGIN
+                                DECLARE moduleIdVar INT;
+                                DECLARE doneModules INT DEFAULT FALSE;
+                                DECLARE moduleIdCursor CURSOR FOR SELECT id FROM modules;
+                                DECLARE CONTINUE HANDLER FOR NOT FOUND SET doneModules = TRUE;
+                            
+                                OPEN moduleIdCursor;
+                                read_loop_modules: LOOP
+                                    FETCH moduleIdCursor INTO moduleIdVar;
+                                    IF doneModules THEN
+                                        LEAVE read_loop_modules;
+                                    END IF;
+                            
+                                    -- Check if role permissions for this userRoleId and moduleId already exist
+                                    IF NOT EXISTS (
+                                        SELECT 1
+                                        FROM role_permissions
+                                        WHERE userRoleId = NEW.id AND moduleId = moduleIdVar
+                                    ) THEN
+                                        -- Set method values based on userRoleId
+                                        IF NEW.id = 1 THEN
+                                            -- For userRoleId = 1, set all methods to 1
+                                            INSERT INTO role_permissions (userRoleId, moduleId, getMethod, postMethod, putMethod, deleteMethod)
+                                            VALUES (NEW.id, moduleIdVar, 1, 1, 1, 1);
+                                        ELSE
+                                            -- For other userRoleIds, set getMethod to 1, and other methods to 0
+                                            INSERT INTO role_permissions (userRoleId, moduleId, getMethod, postMethod, putMethod, deleteMethod)
+                                            VALUES (NEW.id, moduleIdVar, 1, 0, 0, 0);
+                                        END IF;
+                                    END IF;
+                                END LOOP;
+                                CLOSE moduleIdCursor;
+                            END;`;
+
+                            const triggers = [rolePermissionTrigger1, rolePermissionTrigger2, rolePermissionTrigger3, rolePermissionTrigger4,rolePermissionTrigger5];
 
                             // Execute each trigger query one by one
                             triggers.reduce((promiseChain, triggerQuery) => {
@@ -248,8 +313,8 @@ class USER {
             });
         };
         // Now execute the table creation functions sequentially
-        createUserRoleTable()
-            .then(createModulesTable)
+        createModulesTable()
+            .then(createUserRoleTable)
             .then(createRolePermissionsTable)
             .then(createUsersTable)
             .then(createPasswordResetTokensTable)
@@ -266,7 +331,111 @@ class USER {
         const authHeader = req.headers['authorization'];
         const token = req.cookies.jwt || authHeader && authHeader.split(' ')[1];
         const contentType = req.headers['content-type'];
-        console.log(contentType)
+        if (!token) {
+            console.log("Token Empty")
+            if (contentType === 'application/json') {
+                return res.status(401).send({ status: false, message: 'Unauthorized' });
+            } else {
+                return res.status(401).redirect('/user/login');
+            }
+        }
+        // Check if token is revoked
+        if (revokedTokens.includes(token)) {
+            console.log("token revoked")
+            if (contentType === 'application/json') {
+                return res.status(401).send({ status: false, message: 'Unauthorized' });
+            } else {
+                return res.status(401).redirect('/user/login');
+            }
+        }
+        jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
+            if (err) {
+                // console.log(err.message);
+                if (contentType === 'application/json') {
+                    return res.status(401).send({ status: false, message: 'Unauthorized' });
+                } else {
+                    return res.status(401).redirect('/user/login');
+                }
+            } else {
+                var userId = decodedToken['id'];
+                connection.query('SELECT * FROM users JOIN user_role ON users.userRoleId=user_role.id WHERE users.id=?', [userId], async (error, results) => {
+                    if (error) {
+                        console.log("error: ", error);
+                        if (contentType === 'application/json') {
+                            return res.status(401).send({ status: false, message: 'Unauthorized' });
+                        } else {
+                            return res.status(401).redirect('user/login');
+                        }
+                    }
+                    if (!results || results.length === 0) {
+                        if (contentType === 'application/json') {
+                            return res.status(401).send({ status: false, message: 'Unauthorized' });
+                        } else {
+                            return res.status(401).redirect('user/login');
+                        }
+                    }
+                    const user = results[0];
+                    delete user.password;
+                    connection.query('SELECT * FROM role_permissions JOIN user_role ON role_permissions.userRoleId = user_role.id JOIN modules ON role_permissions.moduleId = modules.id WHERE user_role.id=?', [user.userRoleId], async (error, results) => {
+                        if (error) {
+                            console.log("error: ", error);
+                            if (contentType === 'application/json') {
+                                return res.status(401).send({ status: false, message: 'Unauthorized' });
+                            } else {
+                                return res.status(401).redirect('/user/login');
+                            }
+                        }
+                        user.modules = [...results];
+                        const requestMethod = req.method;
+                        const whitelistedUrls = process.env.WHITELISTED_URLS.split(',');
+                        const whitelistedAdminUrls = process.env.WHITELISTED_ADMIN_URLS.split(',');
+                        // Check if the requested URL is in the whitelist
+                        if (whitelistedUrls.some(url => req.originalUrl.startsWith(url))) {
+                            // Allow access without permission check
+                            req.user = user;
+                            req.tableName = tableName;
+                            return next();
+                        }
+                        // Check if the requested URL is in the Admin whitelist
+                        if (whitelistedAdminUrls.some(url => req.originalUrl.startsWith(url)) && user.title === 'Admin') {
+                            // Allow access without permission check
+                            req.user = user;
+                            req.tableName = tableName;
+                            return next();
+                        }
+
+                        // Filter the modules array to find the object with a matching tableName
+                        let filteredModule = user.modules.find(module => module.tableName === tableName);
+                        if (filteredModule == null) {
+                            if (contentType === 'application/json') {
+                                return res.status(403).send({ status: false, message: 'Access Denied' });
+                            } else {
+                                return res.status(403).redirect('/user/login');
+                            }
+                        }
+
+                        if ((requestMethod == "GET" && filteredModule.getMethod) || (requestMethod == "POST" && filteredModule.postMethod) || (requestMethod == "PUT" && filteredModule.putMethod) || (requestMethod == "DELETE" && filteredModule.deleteMethod) || user.title == 'Admin') {
+                            req.user = user;
+                            req.tableName = tableName;
+                            return next();
+                        } else {
+                            if (contentType === 'application/json') {
+                                return res.status(403).send({ status: false, message: 'Access Denied' });
+                            } else {
+                                return res.status(403).redirect('/user/login');
+                            }
+                        }
+                    })
+                })
+            }
+        });
+    };
+    
+    static verifyAdmin(req, res, next) {
+        let tableName = req.params.tableName;
+        const authHeader = req.headers['authorization'];
+        const token = req.cookies.jwt || authHeader && authHeader.split(' ')[1];
+        const contentType = req.headers['content-type'];
         if (!token) {
             console.log("Token Empty")
             if (contentType === 'application/json') {
@@ -294,7 +463,6 @@ class USER {
                 }
             } else {
                 var userId = decodedToken['id'];
-                console.log("token verified")
                 connection.query('SELECT * FROM users JOIN user_role ON users.userRoleId=user_role.id WHERE users.id=?', [userId], async (error, results) => {
                     if (error) {
                         console.log("error: ", error);
@@ -313,58 +481,18 @@ class USER {
                     }
                     const user = results[0];
                     delete user.password;
-                    connection.query('SELECT * FROM role_permissions JOIN user_role ON role_permissions.userRoleId = user_role.id JOIN modules ON role_permissions.moduleId = modules.id WHERE user_role.id=?', [user.userRoleId], async (error, results) => {
-                        if (error) {
-                            console.log("error: ", error);
-                            if (contentType === 'application/json') {
-                                return res.status(401).send({ status: false, message: 'Unauthorized' });
-                            } else {
-                                return res.status(401).redirect('/login');
-                            }
-                        }
-                        user.modules = [...results];
-                        console.log("token matched with user details")
-                        const requestMethod = req.method;
-                        console.log(requestMethod)
-                        const whitelistedUrls = process.env.WHITELISTED_URLS.split(',');
-                        const whitelistedAdminUrls = process.env.WHITELISTED_ADMIN_URLS.split(',');
-                        // Check if the requested URL is in the whitelist
-                        if (whitelistedUrls.some(url => req.originalUrl.startsWith(url))) {
-                            // Allow access without permission check
-                            req.user = user;
-                            req.tableName = tableName;
-                            return next();
-                        }
-                        // Check if the requested URL is in the Admin whitelist
-                        if (whitelistedAdminUrls.some(url => req.originalUrl.startsWith(url)) && user.title === 'Admin') {
-                            // Allow access without permission check
-                            req.user = user;
-                            req.tableName = tableName;
-                            return next();
-                        }
-
-                        // Filter the modules array to find the object with a matching tableName
-                        let filteredModule = user.modules.find(module => module.tableName === tableName);
-                        if (filteredModule == null) {
-                            if (contentType === 'application/json') {
-                                return res.status(403).send({ status: false, message: 'Access Denied' });
-                            } else {
-                                return res.status(403).redirect('/login');
-                            }
-                        }
-
-                        if ((requestMethod == "GET" && filteredModule.getMethod) || (requestMethod == "POST" && filteredModule.postMethod) || (requestMethod == "PUT" && filteredModule.putMethod) || (requestMethod == "DELETE" && filteredModule.deleteMethod) || user.title == 'Admin') {
-                            req.user = user;
-                            req.tableName = tableName;
-                            return next();
+                    
+                    if (user.title == 'Admin' && user.userRoleId==1) {
+                        req.user = user;
+                        req.tableName = tableName;
+                        return next();
+                    } else {
+                        if (contentType === 'application/json') {
+                            return res.status(403).send({ status: false, message: 'Access Denied' });
                         } else {
-                            if (contentType === 'application/json') {
-                                return res.status(403).send({ status: false, message: 'Access Denied' });
-                            } else {
-                                return res.status(403).redirect('/login');
-                            }
+                            return res.status(403).redirect('/login');
                         }
-                    })
+                    }
                 })
             }
         });
@@ -375,7 +503,7 @@ class USER {
             callback(null, { status: true, message: "User info get successfully", data: user })
         } else {
             callback({ status: false, message: "User info getting error" }, null)
-        }
+        } 
     };
 
     static login(email, password, callback) {
@@ -386,7 +514,6 @@ class USER {
                 callback(error, null);
                 return;
             }
-            console.log('results :' + results)
             if (!results || results.length === 0) {
                 callback(null, { status: false, message: "User Not Found" }, 401);
                 return;
@@ -419,7 +546,7 @@ class USER {
     };
 
     static register(userName, email, password, userRoleId, callback) {
-        connection.query('SELECT * FROM users WHERE email = ?', [email], async (error, results) => {
+        connection.query('SELECT * FROM users JOIN user_role  WHERE email = ?', [email], async (error, results) => {
             if (error) {
                 console.log("error: ", error);
                 callback(error, null);
@@ -438,7 +565,8 @@ class USER {
                     callback(error, null);
                     return;
                 }
-                callback(null, { status: true, message: "User registered successfully" })
+                
+                callback(null, { status: true, message: "User registered successfully" ,results:results})
             });
         });
     };
@@ -481,13 +609,11 @@ class USER {
                         code: token,
                     }).then(result => {
                         if (result) {
-                            console.log("Email sent");
-                            callback(null, { status: true, message: "Password reset email sent. Please check your inbox." })
+                            callback(null, { status: true, message: "Password reset email sent. Please check your inbox.",email:email })
                         } else {
                             callback(null, { status: false, message: "Error on sent email" }, 500)
                         }
-                    })
-                        .catch(error => {
+                    }).catch(error => {
                             console.error("Error sending email:", error);
                             callback(error, null);
                         });
@@ -497,8 +623,6 @@ class USER {
     };
 
     static resetPassword(email, token, password, confirmPassword, callback) {
-        console.log(email);
-        console.log(token);
         // Retrieve token details from the database
         connection.query('SELECT * FROM password_reset_tokens WHERE token = ? AND email = ?', [token, email], async (error, results) => {
             if (error) {
@@ -529,13 +653,10 @@ class USER {
                 return;
             }
 
-            // console.log(email)
             const hashedPassword = await bcrypt.hash(password, 8);
 
             connection.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userToken.userId], (error, results) => {
 
-                // console.log(hashedPassword)
-                // console.log(email)
                 if (error) {
                     console.log("error: ", error);
                     // callback("Internal server error", null, null, 500);
@@ -599,5 +720,18 @@ class USER {
             });
         });
     };
+
+
+    static getRoleTitles (callback)  {
+    // Example SQL query to fetch all role titles
+    connection.query("SELECT * FROM users join user_role", (err, rows) => {
+        if (err) {
+            console.log("Error fetching role titles:", err);
+            return callback(err, null);
+        }
+        callback(null, rows); // Pass fetched data to the callback function
+    });
+};
+
 }
 module.exports = USER;

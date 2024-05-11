@@ -22,7 +22,6 @@ router.use('/', preventExecutionMiddleware);
 // Route to fetch data from a specific table
 router.get('/', (req, res) => {
   try {
-    console.log("Request params:", req.params);
     const tableName = req.tableName;
     CRUD.get(tableName, (err, data, resCode) => {
       if (err)

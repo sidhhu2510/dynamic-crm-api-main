@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const User = require('../../services/user')
 
-
 // Route to fetch data from a specific table
 router.get('/', User.verify, (req, res) => {
     try {
