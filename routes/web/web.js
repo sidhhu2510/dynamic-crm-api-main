@@ -8,6 +8,6 @@ const user = require('./user');
 router.use('/user', user);
 
 const role_permission = require('./role-permission');
-router.use('/role-permission',User.verify, role_permission);
+router.use('/role-permission', role_permission);
 
 module.exports = router;
