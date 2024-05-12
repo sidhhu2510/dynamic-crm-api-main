@@ -1,0 +1,34 @@
+<%- include('./header') %>
+<style>
+   
+</style>
+
+<main id="main" class="main">
+    <div class="container">
+        <div class="table-responsive">
+            <div class="table-wrapper">
+                <div class="table-title">
+                    <div class="row">
+                        <div class="col-xs-5">
+                            <h2>Create Role</h2>
+                        </div>
+                    </div>
+                </div>
+                <% if (typeof message !== 'undefined' && message) { %>
+                   <h6 class="alert alert-success mt-5"><%= message %></h6>
+                 <% } %>
+                <form action="role-permission/create" method="post">
+                    <div class="form-group">
+                        <label for="title">Enter The Role Name</label>
+                        <input type="text" class="form-control" id="title2" name="title" required>
+                     </div>
+                     <button type="submit" class="btn btn-primary">create Role</button>
+
+
+                </form>
+              
+            </div>
+        </div>
+    </div>
+</main> 
+ <%- include('./fooder') %>

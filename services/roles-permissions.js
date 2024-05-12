@@ -1,4 +1,5 @@
 const connection = require("../config/db");
+const moment = require('moment');
 
 class RolesAndPermissions {
 
@@ -11,7 +12,7 @@ class RolesAndPermissions {
                 console.error('Error getting role creation:', err);
                 callBack(err, null);
                 return;
-            } else {
+            } else {              
                 callBack(null, { status: true, message: "Role created successfully", data: result });
             }
         });
@@ -26,6 +27,8 @@ class RolesAndPermissions {
                 console.error('Error getting roles:', err);
                 callBack(err, null);
             } else {
+              
+               
                 // Array to store promises for fetching role permissions
                 const promises = roles.map(role => {
                     return new Promise((resolve, reject) => {
@@ -51,6 +54,11 @@ class RolesAndPermissions {
                 // Execute all promises and handle callback
                 Promise.all(promises)
                     .then(rolesWithPermissions => {
+                        rolesWithPermissions.forEach(entry => {
+                            entry.createdAt = moment(entry.createdAt).format('YYYY-MM-DD HH:mm'); 
+                            entry.updatesAt = moment(entry.updatesAt).format('YYYY-MM-DD HH:mm'); 
+                        }); 
+                       
                         callBack(null, { status: true, message: "Roles with permissions fetched successfully", data: rolesWithPermissions });
                     })
                     .catch(err => {

@@ -41,7 +41,7 @@ router.get('/register', async function (req, res, next) {
 });
 
 router.post('/register', async function (req, res, next) {
-    // try {
+    try {
         const { userName, email, password, confirmPassword, userRoleId } = req.body;
 
         // Check if any required field is missing
@@ -104,13 +104,13 @@ router.post('/register', async function (req, res, next) {
             // If registration is successful, redirect to another page or render another template
             res.redirect('/');
         });
-    // } catch (err) {
-    //     console.error(`Error while registering user`, err.message);
-    //     res.status(500).render('templates/pages-register.ejs', {
-    //         status: false,
-    //         message: "Internal server error"
-    //     });
-    // }
+    } catch (err) {
+        console.error(`Error while registering user`, err.message);
+        res.status(500).render('templates/pages-register.ejs', {
+            status: false,
+            message: "Internal server error"
+        });
+    }
 });
 
 router.get('/login', (req, res) => {
@@ -176,7 +176,7 @@ router.post('/forgot-password', (req, res) => {
         const { email } = req.body;
         User.forgotPassword(email, (err, data, resCode) => {
             if (err)
-                res.status(resCode || 500).render('/forgot-password.ejs', {
+                res.status(resCode || 500).render('forgot-password.ejs', {
                     status: false,
                     message:
                         err.message || err || "Forgot password operation failed"
@@ -186,7 +186,7 @@ router.post('/forgot-password', (req, res) => {
     } catch (err) {
         console.error(`Error while getting forgot password operation: `, err.message);
         // next(err);
-        res.status(500).render('/forgot-password.ejs', {
+        res.status(500).render('forgot-password.ejs', {
             status: false,
             message:
                 err.message || err || "Forgot password operation failed"
@@ -204,17 +204,17 @@ router.post('/reset-password', (req, res) => {
         const { email, token, password, confirmPassword } = req.body;
         User.resetPassword(email, token, password, confirmPassword, (err, data, resCode) => {
             if (err)
-                res.status(resCode || 500).send({
+                res.status(resCode || 500).render('reset-password.ejs',{
                     status: false,
                     message:
                         err.message || err || "Reset password failed"
                 });
-            else res.status(resCode || 200).send(data);
+            else res.status(resCode || 200).render('login');
         })
     } catch (err) {
         console.error(`Error while getting reset password : `, err.message);
         // next(err);
-        res.status(500).send({
+        res.status(500).render('reset-password.ejs',{
             status: false,
             message:
                 err.message || err || "Reset password failed"
@@ -231,15 +231,17 @@ router.get('/change-password', (req, res) => {
 router.post('/change-password', User.verify, (req, res) => {
     try {
         const user = req.user;
+        console.log(user)
         const { password, newPassword, newConfirmPassword } = req.body;
         User.changePassword(user, password, newPassword, newConfirmPassword, (err, data, resCode) => {
-            if (err)
+            if (err){
+                console.log(err)
                 res.status(resCode || 500).render('/templates/change-password.ejs', {
                     status: false,
                     message:
                         err.message || err || "Change password failed"
                 });
-            else res.status(resCode || 200).redirect('/');
+            }else res.status(resCode || 200).redirect('/');
         })
     } catch (err) {
         console.error(`Error while getting change password : `, err.message);

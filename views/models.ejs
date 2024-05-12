@@ -1,13 +1,6 @@
 <%- include('./header') %> 
 <style>
-#but{
-    font-family: 'Varela Round', sans-serif;
-    float: right;
-	font-size: 50px;
-	margin-right: 50px;
-    color: blue;
 
-  }
   #bt{
     font-family: 'Varela Round', sans-serif;
     float: right;
@@ -25,15 +18,19 @@
 
   }
  
-  button{
-    width: 100px;
-    height: 50px;
-    font-size: x-large;
+  .button{
+    font-size: small;
+    /* font-family: 'Varela Round', sans-serif; */
+    float: right;
+	font-size: 25px;
+	margin-right: 50px;
+    color: white;
+    background-color: blue;
+    border-radius: 10px;
     /* text-size-adjust: 80px; */
     
   }
 </style>
-
 <main id="main" class="main">
     <div class="container">
         <div class="table-responsive">
@@ -41,7 +38,8 @@
                 <div class="table-title">
                     <div class="row">
                         <div class="col-xs-5">
-                            <h2>Models and <b>Permission</b></h2>                         <span id="bt" type="button" class="btn btn-primary btn-lg" >Admin</span>
+                            <h2>Models and Permission</h2>
+                            <span id="bt" type="button" class="btn btn-primary btn-lg" ></span>
                         </div>
 
                     </div>
@@ -49,53 +47,40 @@
                         
                     </div>
                 </div>
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>S.No</th>
-                            <th>Models</th>
-                            <!-- <th>Date Created</th> -->
-                            <th>
-                                <!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
-                                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
-                                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
-                                  </svg> -->
+                <form method="post">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>S.No</th>
+                                <th>Models</th>
+                                <th>VIEW</th>
+                                <th>CREATE</th>
+                                <th>UPDATE</th>
+                                <th>DELETE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% for (var i=0; i < data.length; i++) { %>
+                            <tr>
+                                <td><%= i + 1 %></td>
+                                <td><%= data[i].title %></td>
+                                <td><input type="checkbox" value="<%= data[i].getMethod %>"></td>
+                                <td><input type="checkbox" value="<%= data[i].postMethod %>"></td>
+                                <td><input type="checkbox" value="<%= data[i].putMethod %>"></tr>
+                                <td><input type="checkbox" value="<%= data[i].deleteMethod %>"></td>      
 
-                                  VIEW
-                            </th>
-                            <th>CREATE</th>
-                            <th>UPDATE
-                                <!-- <a href="#editEmployeeModal" class="edit" data-toggle="modal"><i class="material-icons"
-                                    data-toggle="tooltip" title="Edit">&#xE254;</i></a> -->
-                            </th>
-                            <th>
-                                <!-- <a href="#deleteEmployeeModal" class="delete" data-toggle="modal"><i
-                                    class="material-icons" data-toggle="tooltip" title="Delete">&#xE872;</i></a> -->
-                                    DELETE
-                                
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td><a href="#"> TP Follow</a></td>
-                            <!-- <td>04/10/2013</td> -->
-                            <td><input type="checkbox"></td>
-                            <td><input type="checkbox"></td>
-                            <td><input type="checkbox"></td>
-                            <td><input type="checkbox"></td>
-                               
-                        </tr>
-
-
-                    </tbody>
-                </table>
-            </div>
-            <div id="but">
-                <i> <button type="button" class="btn btn-primary btn-lg">Save</button></i>
+                            </tr>
+                            <% } %>
+    
+    
+                        </tbody>
+                    </table>
+                </form>
+            </div><br>
+        
+                <i> <button class="button" type="submit" class="btn btn-primary btn-lg">Save</button></i>
                
-             </div>
+            
         </div>
         
     </div>

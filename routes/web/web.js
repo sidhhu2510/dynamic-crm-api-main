@@ -10,4 +10,9 @@ router.use('/user', user);
 const role_permission = require('./role-permission');
 router.use('/role-permission', role_permission);
 
+router.get('/role',(req,res)=>{
+    res.render('createRole.ejs')
+})
+
+
 module.exports = router;
